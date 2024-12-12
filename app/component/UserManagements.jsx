@@ -80,28 +80,34 @@ const UserManagementPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 bg-gray-100 min-h-screen">
+    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 bg-gray-100 min-h-screen">
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">User Management</h2>
-          <div className="flex items-center space-x-4">
-            <div className="relative">
+        {/* Header Section - Responsive Flex */}
+        <div className="flex flex-col sm:flex-row justify-between items-center p-4 border-b space-y-4 sm:space-y-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 w-full text-center sm:text-left">
+            User Management
+          </h2>
+          
+          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+            {/* Search Input - Responsive Width */}
+            <div className="relative w-full sm:w-64 md:w-80">
               <input
                 type="text"
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-md w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
             </div>
 
+            {/* Add User Button - Full Width on Small Screens */}
             <button
               onClick={() => {
                 setSelectedUser(null);
                 setIsAddUserModalOpen(true);
               }}
-              className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+              className="flex items-center justify-center w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Add User
@@ -109,29 +115,38 @@ const UserManagementPage = () => {
           </div>
         </div>
 
-        {isLoading && <div className="text-center py-4">Loading users...</div>}
+        {/* Loading and Error States */}
+        {isLoading && (
+          <div className="text-center py-4 text-gray-600">
+            Loading users...
+          </div>
+        )}
         {error && (
           <div className="text-center py-4 text-red-500">
             {error}
           </div>
         )}
 
+        {/* User Table - Responsive Overflow */}
         {!isLoading && !error && (
-          <UserTable
-            users={filteredUsers}
-            onDeleteUser={handleDeleteUser}
-            onEditUser={handleEditUser}
-            onViewUser={handleViewUser}
-          />
+          <div className="overflow-x-auto">
+            <UserTable
+              users={filteredUsers}
+              onDeleteUser={handleDeleteUser}
+              onEditUser={handleEditUser}
+              onViewUser={handleViewUser}
+            />
+          </div>
         )}
 
+        {/* Pagination - Responsive Layout */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center p-4 space-x-2">
+          <div className="flex flex-wrap justify-center items-center p-4 space-x-2 space-y-2">
             {[...Array(Math.min(5, totalPages))].map((_, index) => (
               <button
                 key={index}
                 onClick={() => handlePageChange(index + 1)}
-                className={`px-4 py-2 rounded-md ${
+                className={`px-4 py-2 rounded-md m-1 ${
                   currentPage === index + 1
                     ? "bg-blue-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -144,6 +159,7 @@ const UserManagementPage = () => {
         )}
       </div>
 
+      {/* Modals - No Changes Needed */}
       <AddUserModal
         isOpen={isAddUserModalOpen}
         onClose={() => {
