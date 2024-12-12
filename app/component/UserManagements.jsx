@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { useUserStore } from "../lib/api";
-import UserTable from "./UserTable";
+import UserTable from "./usertable";
 import AddUserModal from "./AddUserModal";
 import UserViewModal from "./UserViewModel";
 
@@ -26,7 +26,6 @@ const UserManagementPage = () => {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = React.useState(false);
   const [isViewUserModalOpen, setIsViewUserModalOpen] = React.useState(false);
 
-  // Fetch users on initial load
   useEffect(() => {
     fetchUsers(currentPage);
   }, [currentPage]);
@@ -83,11 +82,9 @@ const UserManagementPage = () => {
   return (
     <div className="container mx-auto p-6 bg-gray-100 min-h-screen">
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-2xl font-bold text-gray-800">User Management</h2>
           <div className="flex items-center space-x-4">
-            {/* Search Input */}
             <div className="relative">
               <input
                 type="text"
