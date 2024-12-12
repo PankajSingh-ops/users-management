@@ -1,63 +1,56 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
-import { QueryClient, QueryClientProvider } from "react-query";
+import { useUserStore } from "../lib/api";
 import UserTable from "./UserTable";
 import AddUserModal from "./AddUserModal";
 import UserViewModal from "./UserViewModel";
-import {
-  useUsers,
-  useCreateUser,
-  useUpdateUser,
-  useDeleteUser,
-} from "../lib/api";
-
-const queryClient = new QueryClient();
 
 const UserManagementPage = () => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
+  const {
+    users,
+    currentPage,
+    totalPages,
+    searchTerm,
+    selectedUser,
+    isLoading,
+    error,
+    fetchUsers,
+    setSearchTerm,
+    setSelectedUser,
+    addUser,
+    updateUser,
+    deleteUser
+  } = useUserStore();
 
-  const { data: usersData, isLoading, isError } = useUsers(currentPage);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = React.useState(false);
+  const [isViewUserModalOpen, setIsViewUserModalOpen] = React.useState(false);
 
-  // Add this for debugging
+  // Fetch users on initial load
   useEffect(() => {
-    console.log('Users Data:', usersData);
-  }, [usersData]);
+    fetchUsers(currentPage);
+  }, [currentPage]);
 
-  const createUserMutation = useCreateUser();
-  const updateUserMutation = useUpdateUser();
-  const deleteUserMutation = useDeleteUser();
-
-  const filteredUsers =
-    usersData?.data.filter(
-      (user) =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleViewUser = (user) => {
     setSelectedUser(user);
     setIsViewUserModalOpen(true);
   };
 
-  const handleAddUser = (userData) => {
-    console.log("Adding user:", userData); // Debug user data
-    createUserMutation.mutate(userData, {
-      onSuccess: (response) => {
-        console.log("User created successfully:", response);
-        queryClient.invalidateQueries("users"); // Refresh users
-        setIsAddUserModalOpen(false);
-        setSelectedUser(null);
-      },
-      onError: (error) => {
-        console.error("Error adding user:", error);
-      },
-    });
+  const handleAddUser = async (userData) => {
+    try {
+      await addUser(userData);
+      setIsAddUserModalOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error adding user:', error);
+    }
   };
 
   const handleEditUser = (user) => {
@@ -65,28 +58,26 @@ const UserManagementPage = () => {
     setIsAddUserModalOpen(true);
   };
 
-  const handleUpdateUser = (userData) => {
-    console.log("Updating user:", userData);
-    updateUserMutation.mutate(userData, {
-      onSuccess: () => {
-        queryClient.invalidateQueries("users");
-        setIsAddUserModalOpen(false);
-        setSelectedUser(null);
-      },
-      onError: (error) => console.error("Update user error:", error),
-    });
+  const handleUpdateUser = async (userData) => {
+    try {
+      await updateUser(userData);
+      setIsAddUserModalOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
   };
 
-  const handleDeleteUser = (id) => {
-    console.log("Deleting user with id:", id);
-    deleteUserMutation.mutate(id, {
-      onSuccess: () => queryClient.invalidateQueries("users"),
-      onError: (error) => console.error("Delete user error:", error),
-    });
+  const handleDeleteUser = async (id) => {
+    try {
+      await deleteUser(id);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
 
   const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
+    fetchUsers(pageNumber);
   };
 
   return (
@@ -122,13 +113,13 @@ const UserManagementPage = () => {
         </div>
 
         {isLoading && <div className="text-center py-4">Loading users...</div>}
-        {isError && (
+        {error && (
           <div className="text-center py-4 text-red-500">
-            Error loading users. Please try again later.
+            {error}
           </div>
         )}
 
-        {!isLoading && !isError && (
+        {!isLoading && !error && (
           <UserTable
             users={filteredUsers}
             onDeleteUser={handleDeleteUser}
@@ -137,9 +128,9 @@ const UserManagementPage = () => {
           />
         )}
 
-        {usersData?.total_pages && (
+        {totalPages > 1 && (
           <div className="flex justify-center items-center p-4 space-x-2">
-            {[...Array(Math.min(5, usersData.total_pages))].map((_, index) => (
+            {[...Array(Math.min(5, totalPages))].map((_, index) => (
               <button
                 key={index}
                 onClick={() => handlePageChange(index + 1)}
@@ -176,10 +167,4 @@ const UserManagementPage = () => {
   );
 };
 
-const WrappedUserManagementPage = () => (
-  <QueryClientProvider client={queryClient}>
-    <UserManagementPage />
-  </QueryClientProvider>
-);
-
-export default WrappedUserManagementPage;
+export default UserManagementPage;

@@ -1,173 +1,142 @@
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
+import { z } from 'zod';
 import axios from 'axios';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+
+const UserSchema = z.object({
+  id: z.number().optional(),
+  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  email: z.string().email({ message: "Invalid email address" }),
+  role: z.enum(['Admin', 'User', 'Manager']).default('User'),
+  avatar: z.union([
+    z.string().url().optional(), 
+    z.string().optional()
+  ]).transform(avatar => 
+    avatar || 'https://via.placeholder.com/150'
+  )
+});
 
 const BASE_URL = 'https://reqres.in/api';
 
-export const fetchUsers = async (page = 1, perPage = 6) => {
-  try {
-    const { data } = await axios.get(`${BASE_URL}/users`, {
-      params: { page, per_page: perPage }
-    });
-    return {
-      ...data,
-      data: data.data.map(user => ({
-        id: user.id,
-        name: `${user.first_name} ${user.last_name}`,
-        email: user.email,
-        role: 'User', // Default role since not provided by API
-        avatar: user.avatar
-      }))
-    };
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    throw error;
-  }
-};
+export const useUserStore = create(
+  immer((set, get) => ({
+    users: [],
+    currentPage: 1,
+    totalPages: 1,
+    searchTerm: '',
+    selectedUser: null,
+    isLoading: false,
+    error: null,
 
-export const createUser = async (userData) => {
-  try {
-    const { data } = await axios.post(`${BASE_URL}/users`, userData);
-    return {
-      id: Date.now(), // Generate a temporary ID
-      name: `${userData.name}`,
-      email: userData.email,
-      role: userData.role || 'User',
-      avatar: userData.avatar || 'https://via.placeholder.com/150'
-    };
-  } catch (error) {
-    console.error('Error creating user:', error);
-    throw error;
-  }
-};
-
-export const updateUser = async ({ id, ...userData }) => {
-  try {
-    const { data } = await axios.put(`${BASE_URL}/users/${id}`, userData);
-    return {
-      id,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role || 'User',
-      avatar: userData.avatar || 'https://via.placeholder.com/150'
-    };
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
-};
-
-export const deleteUser = async (id) => {
-  try {
-    await axios.delete(`${BASE_URL}/users/${id}`);
-    return id;
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    throw error;
-  }
-};
-
-export const useUsers = (page) => {
-  return useQuery(['users', page], () => fetchUsers(page), {
-    keepPreviousData: true,
-    refetchOnWindowFocus: true,
-    onError: (error) => {
-      console.error('Error in useUsers:', error);
-    }
-  });
-};
-
-export const useCreateUser = () => {
-  const queryClient = useQueryClient();
-  return useMutation(createUser, {
-    onMutate: async (newUser) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries('users');
-
-      // Snapshot the previous value
-      const previousUsers = queryClient.getQueryData(['users']);
-
-      // Optimistically update to the new value
-      queryClient.setQueryData(['users'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: [
-            ...(old.data || []),
-            { 
-              id: Date.now(),
-              name: newUser.name,
-              email: newUser.email,
-              role: newUser.role || 'User',
-              avatar: newUser.avatar || 'https://via.placeholder.com/150'
-            }
-          ]
-        };
+    fetchUsers: async (page = 1) => {
+      set(state => { 
+        state.isLoading = true; 
+        state.error = null; 
       });
+      try {
+        const response = await axios.get(`${BASE_URL}/users`, {
+          params: { page, per_page: 6 }
+        });
 
-      // Return a context object with the snapshotted value
-      return { previousUsers };
+        const mappedUsers = response.data.data.map(user => UserSchema.parse({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          role: 'User',
+          avatar: user.avatar
+        }));
+
+        set(state => {
+          state.users = mappedUsers;
+          state.currentPage = page;
+          state.totalPages = response.data.total_pages;
+          state.isLoading = false;
+        });
+      } catch (error) {
+        set(state => {
+          state.error = error instanceof Error ? error.message : 'An error occurred';
+          state.isLoading = false;
+        });
+      }
     },
-    onError: (err, newUser, context) => {
-      queryClient.setQueryData(['users'], context.previousUsers);
+
+    addUser: async (userData) => {
+      try {
+        const validatedUser = UserSchema.omit({ id: true }).parse({
+          ...userData,
+          avatar: userData.avatar || 'https://via.placeholder.com/150'
+        });
+        
+        set(state => {
+          state.users.push({ 
+            ...validatedUser, 
+            id: Date.now() 
+          });
+        });
+      } catch (error) {
+        set(state => {
+          state.error = error instanceof Error ? error.message : 'Failed to add user';
+        });
+        throw error;
+      }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries('users');
-    }
-  });
-};
 
-export const useUpdateUser = () => {
-  const queryClient = useQueryClient();
-  return useMutation(updateUser, {
-    onMutate: async (updatedUser) => {
-      await queryClient.cancelQueries('users');
+    updateUser: async (userData) => {
+      try {
+        const validatedUser = UserSchema.parse({
+          ...userData,
+          avatar: userData.avatar || 'https://via.placeholder.com/150'
+        });
 
-      const previousUsers = queryClient.getQueryData(['users']);
+        set(state => {
+          const index = state.users.findIndex(u => u.id === validatedUser.id);
+          if (index !== -1) {
+            state.users[index] = validatedUser;
+          }
+        });
+      } catch (error) {
+        set(state => {
+          state.error = error instanceof Error ? error.message : 'Failed to update user';
+        });
+        throw error;
+      }
+    },
 
-      queryClient.setQueryData(['users'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: (old.data || []).map(user => 
-            user.id === updatedUser.id ? { ...user, ...updatedUser } : user
-          )
-        };
+    deleteUser: async (id) => {
+      try {
+        set(state => {
+          state.users = state.users.filter(user => user.id !== id);
+        });
+      } catch (error) {
+        set(state => {
+          state.error = error instanceof Error ? error.message : 'Failed to delete user';
+        });
+        throw error;
+      }
+    },
+
+    setSearchTerm: (term) => {
+      set(state => { 
+        state.searchTerm = term; 
       });
-
-      return { previousUsers };
     },
-    onError: (err, updatedUser, context) => {
-      queryClient.setQueryData(['users'], context.previousUsers);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries('users');
-    }
-  });
-};
 
-export const useDeleteUser = () => {
-  const queryClient = useQueryClient();
-  return useMutation(deleteUser, {
-    onMutate: async (deletedUserId) => {
-      await queryClient.cancelQueries('users');
-
-      const previousUsers = queryClient.getQueryData(['users']);
-
-      queryClient.setQueryData(['users'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: (old.data || []).filter(user => user.id !== deletedUserId)
-        };
+    setSelectedUser: (user) => {
+      set(state => { 
+        state.selectedUser = user; 
       });
+    },
 
-      return { previousUsers };
-    },
-    onError: (err, deletedUserId, context) => {
-      queryClient.setQueryData(['users'], context.previousUsers);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries('users');
+    resetState: () => {
+      set(state => {
+        state.users = [];
+        state.currentPage = 1;
+        state.totalPages = 1;
+        state.searchTerm = '';
+        state.selectedUser = null;
+        state.isLoading = false;
+        state.error = null;
+      });
     }
-  });
-};
+  }))
+);
