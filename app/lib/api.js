@@ -5,11 +5,13 @@ class ReqresApiService {
     this.baseURL = 'https://reqres.in/api';
   }
 
-  // Fetch all users
-  async fetchUsers(page = 1) {
+  async fetchUsers(page = 1, perPage = 6) {
     try {
       const response = await axios.get(`${this.baseURL}/users`, {
-        params: { page }
+        params: { 
+          page,
+          per_page: perPage
+        }
       });
       return response.data;
     } catch (error) {
@@ -18,7 +20,6 @@ class ReqresApiService {
     }
   }
 
-  // Create a new user
   async createUser(userData) {
     try {
       const response = await axios.post(`${this.baseURL}/users`, userData);
@@ -29,7 +30,6 @@ class ReqresApiService {
     }
   }
 
-  // Update an existing user
   async updateUser(id, userData) {
     try {
       const response = await axios.put(`${this.baseURL}/users/${id}`, userData);
@@ -40,7 +40,6 @@ class ReqresApiService {
     }
   }
 
-  // Delete a user
   async deleteUser(id) {
     try {
       await axios.delete(`${this.baseURL}/users/${id}`);
