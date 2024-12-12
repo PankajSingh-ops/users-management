@@ -1,63 +1,63 @@
-"use client"
-import React, { useState, useEffect } from 'react';
-import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-import UserTable from './usertable';
-import AddUserModal from './AddUserModal';
-import UserViewModal from './UserViewModel';
-import ReqresApiService from '../lib/api';
+"use client";
+import React, { useEffect, useState } from "react";
+import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
+import { QueryClient, QueryClientProvider } from "react-query";
+import UserTable from "./UserTable";
+import AddUserModal from "./AddUserModal";
+import UserViewModal from "./UserViewModel";
+import {
+  useUsers,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+} from "../lib/api";
+
+const queryClient = new QueryClient();
 
 const UserManagementPage = () => {
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
-  const [apiService] = useState(new ReqresApiService());
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
 
+  const { data: usersData, isLoading, isError } = useUsers(currentPage);
+
+  // Add this for debugging
   useEffect(() => {
-    const fetchInitialUsers = async () => {
-      try {
-        const response = await apiService.fetchUsers(currentPage);
-        setUsers(response.data);
-        setFilteredUsers(response.data);
-        setTotalPages(response.total_pages);
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-      }
-    };
+    console.log('Users Data:', usersData);
+  }, [usersData]);
 
-    fetchInitialUsers();
-  }, [currentPage]);
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = users.filter(user => 
-        user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [searchTerm, users]);
+  const filteredUsers =
+    usersData?.data.filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
   const handleViewUser = (user) => {
     setSelectedUser(user);
     setIsViewUserModalOpen(true);
   };
 
-  const handleAddUser = async (newUser) => {
-    try {
-      const createdUser = await apiService.createUser(newUser);
-      setUsers([...users, createdUser]);
-      setIsAddUserModalOpen(false);
-    } catch (error) {
-      console.error('Failed to add user:', error);
-    }
+  const handleAddUser = (userData) => {
+    console.log("Adding user:", userData); // Debug user data
+    createUserMutation.mutate(userData, {
+      onSuccess: (response) => {
+        console.log("User created successfully:", response);
+        queryClient.invalidateQueries("users"); // Refresh users
+        setIsAddUserModalOpen(false);
+        setSelectedUser(null);
+      },
+      onError: (error) => {
+        console.error("Error adding user:", error);
+      },
+    });
   };
 
   const handleEditUser = (user) => {
@@ -65,28 +65,24 @@ const UserManagementPage = () => {
     setIsAddUserModalOpen(true);
   };
 
-  const handleUpdateUser = async (updatedUser) => {
-    try {
-      const result = await apiService.updateUser(updatedUser.id, updatedUser);
-      setUsers(users.map(user => 
-        user.id === updatedUser.id ? result : user
-      ));
-      setSelectedUser(null);
-      setIsAddUserModalOpen(false);
-    } catch (error) {
-      console.error('Failed to update user:', error);
-    }
+  const handleUpdateUser = (userData) => {
+    console.log("Updating user:", userData);
+    updateUserMutation.mutate(userData, {
+      onSuccess: () => {
+        queryClient.invalidateQueries("users");
+        setIsAddUserModalOpen(false);
+        setSelectedUser(null);
+      },
+      onError: (error) => console.error("Update user error:", error),
+    });
   };
 
-  const handleDeleteUser = async (id) => {
-    try {
-      await apiService.deleteUser(id);
-      const updatedUsers = users.filter(user => user.id !== id);
-      setUsers(updatedUsers);
-      setFilteredUsers(updatedUsers);
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-    }
+  const handleDeleteUser = (id) => {
+    console.log("Deleting user with id:", id);
+    deleteUserMutation.mutate(id, {
+      onSuccess: () => queryClient.invalidateQueries("users"),
+      onError: (error) => console.error("Delete user error:", error),
+    });
   };
 
   const handlePageChange = (pageNumber) => {
@@ -96,9 +92,11 @@ const UserManagementPage = () => {
   return (
     <div className="container mx-auto p-6 bg-gray-100 min-h-screen">
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-2xl font-bold text-gray-800">User Management</h2>
           <div className="flex items-center space-x-4">
+            {/* Search Input */}
             <div className="relative">
               <input
                 type="text"
@@ -109,6 +107,7 @@ const UserManagementPage = () => {
               />
               <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
             </div>
+
             <button
               onClick={() => {
                 setSelectedUser(null);
@@ -122,36 +121,50 @@ const UserManagementPage = () => {
           </div>
         </div>
 
-        <UserTable
-          users={filteredUsers}
-          onDeleteUser={handleDeleteUser}
-          onEditUser={handleEditUser}
-          onViewUser={handleViewUser}
-        />
+        {isLoading && <div className="text-center py-4">Loading users...</div>}
+        {isError && (
+          <div className="text-center py-4 text-red-500">
+            Error loading users. Please try again later.
+          </div>
+        )}
 
-        {/* Pagination */}
-        <div className="flex justify-center items-center p-4 space-x-2">
-          {[...Array(totalPages)].map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handlePageChange(index + 1)}
-              className={`px-4 py-2 rounded-md ${
-                currentPage === index + 1 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {index + 1}
-            </button>
-          ))}
-        </div>
+        {!isLoading && !isError && (
+          <UserTable
+            users={filteredUsers}
+            onDeleteUser={handleDeleteUser}
+            onEditUser={handleEditUser}
+            onViewUser={handleViewUser}
+          />
+        )}
+
+        {usersData?.total_pages && (
+          <div className="flex justify-center items-center p-4 space-x-2">
+            {[...Array(Math.min(5, usersData.total_pages))].map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handlePageChange(index + 1)}
+                className={`px-4 py-2 rounded-md ${
+                  currentPage === index + 1
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <AddUserModal
         isOpen={isAddUserModalOpen}
-        onClose={() => setIsAddUserModalOpen(false)}
+        onClose={() => {
+          setIsAddUserModalOpen(false);
+          setSelectedUser(null);
+        }}
         onAddUser={handleAddUser}
-        initialUser={selectedUser || undefined}
+        onUpdateUser={handleUpdateUser}
+        initialUser={selectedUser}
       />
 
       <UserViewModal
@@ -163,4 +176,10 @@ const UserManagementPage = () => {
   );
 };
 
-export default UserManagementPage;
+const WrappedUserManagementPage = () => (
+  <QueryClientProvider client={queryClient}>
+    <UserManagementPage />
+  </QueryClientProvider>
+);
+
+export default WrappedUserManagementPage;

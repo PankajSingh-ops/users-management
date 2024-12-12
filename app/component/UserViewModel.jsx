@@ -5,7 +5,7 @@ import {
   UserIcon, 
   EnvelopeIcon, 
   IdentificationIcon, 
-  PhotoIcon 
+  UserGroupIcon
 } from '@heroicons/react/24/solid';
 
 const UserViewModal = ({ 
@@ -60,7 +60,7 @@ const UserViewModal = ({
                     className="w-32 h-32 rounded-full object-cover border-4 border-blue-500 mb-4"
                   />
                   <h2 className="text-2xl font-bold text-gray-800">
-                    {user.first_name} {user.last_name}
+                    {user.name}
                   </h2>
                 </div>
 
@@ -70,7 +70,7 @@ const UserViewModal = ({
                     <div>
                       <p className="text-sm text-gray-600">Full Name</p>
                       <p className="font-semibold">
-                        {user.first_name} {user.last_name}
+                        {user.name}
                       </p>
                     </div>
                   </div>
@@ -92,17 +92,10 @@ const UserViewModal = ({
                   </div>
 
                   <div className="flex items-center bg-gray-100 p-3 rounded-lg">
-                    <PhotoIcon className="h-6 w-6 text-red-500 mr-3" />
+                    <UserGroupIcon className="h-6 w-6 text-red-500 mr-3" />
                     <div>
-                      <p className="text-sm text-gray-600">Avatar</p>
-                      <a 
-                        href={user.avatar} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="font-semibold text-blue-600 hover:underline"
-                      >
-                        View Image
-                      </a>
+                      <p className="text-sm text-gray-600">Role</p>
+                      {user.role}
                     </div>
                   </div>
                 </div>

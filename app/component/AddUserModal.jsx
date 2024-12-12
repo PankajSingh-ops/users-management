@@ -1,117 +1,170 @@
-import React, { useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const AddUserModal = ({ 
   isOpen, 
   onClose, 
   onAddUser, 
-  initialUser = { first_name: '', last_name: '', email: '', avatar: '' } 
+  onUpdateUser, 
+  initialUser 
 }) => {
-  const [newUser, setNewUser] = useState(initialUser);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'User',
+    avatar: ''
+  });
 
-  const handleSubmit = () => {
-    onAddUser(newUser);
-    onClose();
-    setNewUser({ first_name: '', last_name: '', email: '', avatar: '' });
-  };
+  useEffect(() => {
+    if (initialUser) {
+      setFormData({
+        name: initialUser.name || '',
+        email: initialUser.email || '',
+        role: initialUser.role || 'User',
+        avatar: initialUser.avatar || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        email: '',
+        role: 'User',
+        avatar: ''
+      });
+    }
+  }, [initialUser, isOpen]);
 
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.email) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (initialUser) {
+      onUpdateUser({
+        id: initialUser.id,
+        ...formData
+      });
+    } else {
+      onAddUser(formData);
+    }
+
+    onClose();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog 
-        as="div" 
-        className="relative z-10" 
-        onClose={onClose}
-      >
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black/25" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+      <div className="relative w-auto max-w-3xl mx-auto my-6">
+        <div className="relative flex flex-col w-full bg-white border-0 rounded-lg shadow-lg outline-none focus:outline-none">
+          <div className="flex items-start justify-between p-5 border-b border-solid rounded-t border-blueGray-200">
+            <h3 className="text-3xl font-semibold">
+              {initialUser ? 'Edit User' : 'Add New User'}
+            </h3>
+            <button
+              className="float-right p-1 ml-auto text-3xl font-semibold leading-none text-black bg-transparent border-0 outline-none opacity-5 focus:outline-none"
+              onClick={onClose}
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                  {initialUser.id ? 'Edit User' : 'Add New User'}
-                </Dialog.Title>
-                <div className="mt-4 space-y-4">
-                  <input
-                    type="text"
-                    name="first_name"
-                    placeholder="First Name"
-                    value={newUser.first_name}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-                  <input
-                    type="text"
-                    name="last_name"
-                    placeholder="Last Name"
-                    value={newUser.last_name}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    value={newUser.email}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-                  <input
-                    type="text"
-                    name="avatar"
-                    placeholder="Avatar URL"
-                    value={newUser.avatar}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md"
-                  />
-
-                  <div className="mt-4 flex justify-end space-x-2">
-                    <button 
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                      onClick={onClose}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="button"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                      onClick={handleSubmit}
-                    >
-                      {initialUser.id ? 'Update' : 'Add User'}
-                    </button>
-                  </div>
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              ×
+            </button>
           </div>
+          <form onSubmit={handleSubmit} className="relative flex-auto p-6">
+            <div className="mb-4">
+              <label 
+                className="block mb-2 text-sm font-bold text-gray-700" 
+                htmlFor="name"
+              >
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                placeholder="Enter full name"
+              />
+            </div>
+            <div className="mb-4">
+              <label 
+                className="block mb-2 text-sm font-bold text-gray-700" 
+                htmlFor="email"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                placeholder="Enter email"
+              />
+            </div>
+            <div className="mb-4">
+              <label 
+                className="block mb-2 text-sm font-bold text-gray-700" 
+                htmlFor="role"
+              >
+                Role
+              </label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+              >
+                <option value="User">User</option>
+                <option value="Admin">Admin</option>
+                <option value="Manager">Manager</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label 
+                className="block mb-2 text-sm font-bold text-gray-700" 
+                htmlFor="avatar"
+              >
+                Avatar URL (Optional)
+              </label>
+              <input
+                type="url"
+                name="avatar"
+                value={formData.avatar}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                placeholder="Enter avatar URL"
+              />
+            </div>
+            <div className="flex items-center justify-end p-6 border-t border-solid rounded-b border-blueGray-200">
+              <button
+                type="button"
+                className="px-6 py-2 mb-1 mr-4 text-sm font-bold text-red-500 uppercase outline-none background-transparent focus:outline-none"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-3 mb-1 mr-1 text-sm font-bold text-white uppercase bg-blue-500 rounded shadow hover:bg-blue-600 focus:outline-none focus:shadow-outline"
+              >
+                {initialUser ? 'Update User' : 'Add User'}
+              </button>
+            </div>
+          </form>
         </div>
-      </Dialog>
-    </Transition>
+      </div>
+    </div>
   );
 };
 
