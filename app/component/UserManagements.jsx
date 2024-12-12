@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { PlusIcon } from '@heroicons/react/24/solid';
 import UserTable from './usertable';
 import AddUserModal from './AddUserModal';
+import UserViewModal from './UserViewModel';
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState([
@@ -30,7 +31,14 @@ const UserManagementPage = () => {
   ]);
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);  
+  const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
+
+
+  const handleViewUser = (user) => {
+    setSelectedUser(user);
+    setIsViewUserModalOpen(true);
+  };
 
   const handleAddUser = (newUser) => {
     const newUserWithId = {
@@ -78,6 +86,7 @@ const UserManagementPage = () => {
           users={users} 
           onDeleteUser={handleDeleteUser}
           onEditUser={handleEditUser}
+          onViewUser={handleViewUser}
         />
       </div>
 
@@ -86,6 +95,11 @@ const UserManagementPage = () => {
         onClose={() => setIsAddUserModalOpen(false)}
         onAddUser={handleAddUser}
         initialUser={selectedUser || undefined}
+      />
+          <UserViewModal
+        isOpen={isViewUserModalOpen}
+        onClose={() => setIsViewUserModalOpen(false)}
+        user={selectedUser}
       />
     </div>
   );

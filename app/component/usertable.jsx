@@ -1,8 +1,13 @@
 import React from 'react';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/solid';
+import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/solid';
 import UserAvatar from './UserAvatar';
 
-const UserTable = ({ users, onDeleteUser, onEditUser }) => {
+const UserTable = ({ 
+  users, 
+  onDeleteUser, 
+  onEditUser, 
+  onViewUser 
+}) => {
   return (
     <table className="w-full">
       <thead className="bg-gray-200">
@@ -15,7 +20,7 @@ const UserTable = ({ users, onDeleteUser, onEditUser }) => {
         </tr>
       </thead>
       <tbody>
-        {users?.map((user) => (
+        {users.map((user) => (
           <tr key={user.id} className="border-b hover:bg-gray-100">
             <td className="p-4">
               <UserAvatar 
@@ -27,6 +32,13 @@ const UserTable = ({ users, onDeleteUser, onEditUser }) => {
             <td className="p-4">{user.last_name}</td>
             <td className="p-4">{user.email}</td>
             <td className="p-4 flex justify-center space-x-2">
+              <button 
+                onClick={() => onViewUser(user)}
+                className="text-green-500 hover:text-green-700"
+                title="View"
+              >
+                <EyeIcon className="h-5 w-5" />
+              </button>
               <button 
                 onClick={() => onEditUser(user)}
                 className="text-blue-500 hover:text-blue-700"
