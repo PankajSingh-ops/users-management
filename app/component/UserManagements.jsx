@@ -30,7 +30,7 @@ const UserManagementPage = () => {
     fetchUsers(currentPage);
   }, [currentPage]);
 
-  const filteredUsers = users.filter(
+  const filteredUsers = (users[currentPage] || []).filter(
     (user) =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,6 +77,26 @@ const UserManagementPage = () => {
 
   const handlePageChange = (pageNumber) => {
     fetchUsers(pageNumber);
+  };
+
+  // Generate page numbers to display
+  const generatePageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    
+    // Start from the beginning or adjust based on current page
+    let startPage = Math.max(1, Math.min(
+      currentPage - Math.floor(maxPagesToShow / 2), 
+      totalPages - maxPagesToShow + 1
+    ));
+    
+    const endPage = Math.min(startPage + maxPagesToShow - 1, totalPages);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+    
+    return pageNumbers;
   };
 
   return (
@@ -141,20 +161,41 @@ const UserManagementPage = () => {
 
         {/* Pagination - Responsive Layout */}
         {totalPages > 1 && (
-          <div className="flex flex-wrap justify-center items-center p-4 space-x-2 space-y-2">
-            {[...Array(Math.min(5, totalPages))].map((_, index) => (
+          <div className="flex flex-wrap justify-center items-center p-4 space-x-2">
+            {/* Previous Button */}
+            {currentPage > 1 && (
               <button
-                key={index}
-                onClick={() => handlePageChange(index + 1)}
+                onClick={() => handlePageChange(currentPage - 1)}
+                className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 m-1"
+              >
+                Previous
+              </button>
+            )}
+
+            {/* Page Numbers */}
+            {generatePageNumbers().map((pageNumber) => (
+              <button
+                key={pageNumber}
+                onClick={() => handlePageChange(pageNumber)}
                 className={`px-4 py-2 rounded-md m-1 ${
-                  currentPage === index + 1
+                  currentPage === pageNumber
                     ? "bg-blue-500 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                {index + 1}
+                {pageNumber}
               </button>
             ))}
+
+            {/* Next Button */}
+            {currentPage < totalPages && (
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 m-1"
+              >
+                Next
+              </button>
+            )}
           </div>
         )}
       </div>

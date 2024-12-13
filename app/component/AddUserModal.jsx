@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { z } from 'zod';
+
+// Define Zod schema for user validation
+const UserSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters long" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  role: z.enum(['User', 'Admin', 'Manager'], { 
+    errorMap: () => ({ message: "Please select a valid role" }) 
+  }),
+  avatar: z.string().url({ message: "Please enter a valid URL" }).optional()
+});
+
 
 const AddUserModal = ({ 
   isOpen, 
@@ -13,6 +25,8 @@ const AddUserModal = ({
     role: 'User',
     avatar: ''
   });
+
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (initialUser) {
@@ -30,6 +44,8 @@ const AddUserModal = ({
         avatar: ''
       });
     }
+    // Clear errors when modal opens/closes or initial user changes
+    setErrors({});
   }, [initialUser, isOpen]);
 
   const handleChange = (e) => {
@@ -38,26 +54,47 @@ const AddUserModal = ({
       ...prev,
       [name]: value
     }));
+    
+    // Clear specific field error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email) {
-      alert('Please fill in all required fields');
-      return;
-    }
+    try {
+      // Validate the entire form
+      UserSchema.parse(formData);
+      
+      // If validation passes
+      if (initialUser) {
+        onUpdateUser({
+          id: initialUser.id,
+          ...formData
+        });
+      } else {
+        onAddUser(formData);
+      }
 
-    if (initialUser) {
-      onUpdateUser({
-        id: initialUser.id,
-        ...formData
-      });
-    } else {
-      onAddUser(formData);
+      onClose();
+    } catch (error) {
+      // If validation fails
+      if (error instanceof z.ZodError) {
+        // Convert Zod errors to a more manageable format
+        const formErrors = error.errors.reduce((acc, curr) => {
+          acc[curr.path[0]] = curr.message;
+          return acc;
+        }, {});
+        
+        setErrors(formErrors);
+      }
     }
-
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -90,10 +127,14 @@ const AddUserModal = ({
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                className={`w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline ${
+                  errors.name ? 'border-red-500' : ''
+                }`}
                 placeholder="Enter full name"
               />
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+              )}
             </div>
             <div className="mb-4">
               <label 
@@ -107,10 +148,14 @@ const AddUserModal = ({
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                className={`w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline ${
+                  errors.email ? 'border-red-500' : ''
+                }`}
                 placeholder="Enter email"
               />
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+              )}
             </div>
             <div className="mb-4">
               <label 
@@ -123,28 +168,38 @@ const AddUserModal = ({
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                className={`w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline ${
+                  errors.role ? 'border-red-500' : ''
+                }`}
               >
                 <option value="User">User</option>
                 <option value="Admin">Admin</option>
                 <option value="Manager">Manager</option>
               </select>
+              {errors.role && (
+                <p className="mt-1 text-xs text-red-500">{errors.role}</p>
+              )}
             </div>
             <div className="mb-4">
               <label 
                 className="block mb-2 text-sm font-bold text-gray-700" 
                 htmlFor="avatar"
               >
-                Avatar URL (Optional)
+                Avatar URL
               </label>
               <input
                 type="url"
                 name="avatar"
                 value={formData.avatar}
                 onChange={handleChange}
-                className="w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                className={`w-full px-3 py-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline ${
+                  errors.avatar ? 'border-red-500' : ''
+                }`}
                 placeholder="Enter avatar URL"
               />
+              {errors.avatar && (
+                <p className="mt-1 text-xs text-red-500">{errors.avatar}</p>
+              )}
             </div>
             <div className="flex items-center justify-end p-6 border-t border-solid rounded-b border-blueGray-200">
               <button
