@@ -22,7 +22,7 @@ const BASE_URL = 'https://reqres.in/api';
 export const useUserStore = create(
   persist(
     immer((set, get) => ({
-      users: {}, // Page-specific users
+      users: [], // Change to a single array of users
       currentPage: 1,
       totalPages: 0,
       totalUsers: 0,
@@ -52,15 +52,16 @@ export const useUserStore = create(
           }));
           
           set(state => {
-            // Store page-specific users
-            state.users[page] = mappedUsers;
+            // Merge existing local users with fetched users
+            const existingUsers = state.users;
+            const mergedUsers = existingUsers.length > 0 
+              ? mergeFetchedUsers(existingUsers, mappedUsers) 
+              : mappedUsers;
+            
+            state.users = mergedUsers;
             state.totalPages = response.data.total_pages;
             state.totalUsers = response.data.total;
             state.isLoading = false;
-            
-            // Reset search and selected user on page change
-            state.searchTerm = '';
-            state.selectedUser = null;
           });
         } catch (error) {
           set(state => {
@@ -71,8 +72,6 @@ export const useUserStore = create(
       },
       
       addUser: async (userData) => {
-        const currentPage = get().currentPage;
-        
         try {
           const validatedUser = UserSchema.omit({ id: true }).parse({
             ...userData,
@@ -85,11 +84,8 @@ export const useUserStore = create(
               id: Date.now() // Temporary local ID
             };
             
-            // Add to current page's users
-            if (!state.users[currentPage]) {
-              state.users[currentPage] = [];
-            }
-            state.users[currentPage].push(newUser);
+            // Add to global users list
+            state.users.push(newUser);
           });
         } catch (error) {
           set(state => {
@@ -100,8 +96,6 @@ export const useUserStore = create(
       },
       
       updateUser: async (userData) => {
-        const currentPage = get().currentPage;
-        
         try {
           const validatedUser = UserSchema.parse({
             ...userData,
@@ -109,15 +103,13 @@ export const useUserStore = create(
           });
           
           set(state => {
-            // Update user in current page
-            if (state.users[currentPage]) {
-              const index = state.users[currentPage].findIndex(u => u.id === validatedUser.id);
-              
-              if (index !== -1) {
-                state.users[currentPage][index] = validatedUser;
-              } else {
-                state.users[currentPage].push(validatedUser);
-              }
+            // Update user in global users list
+            const index = state.users.findIndex(u => u.id === validatedUser.id);
+            
+            if (index !== -1) {
+              state.users[index] = validatedUser;
+            } else {
+              state.users.push(validatedUser);
             }
           });
         } catch (error) {
@@ -129,14 +121,10 @@ export const useUserStore = create(
       },
       
       deleteUser: async (id) => {
-        const currentPage = get().currentPage;
-        
         try {
           set(state => {
-            // Only remove from current page's users
-            if (state.users[currentPage]) {
-              state.users[currentPage] = state.users[currentPage].filter(user => user.id !== id);
-            }
+            // Remove from global users list
+            state.users = state.users.filter(user => user.id !== id);
           });
         } catch (error) {
           set(state => {
@@ -160,7 +148,7 @@ export const useUserStore = create(
       
       resetState: () => {
         set(state => {
-          state.users = {};
+          state.users = [];
           state.currentPage = 1;
           state.totalPages = 0;
           state.totalUsers = 0;
@@ -182,3 +170,30 @@ export const useUserStore = create(
     }
   )
 );
+
+// Helper function to merge fetched users with existing local users
+function mergeFetchedUsers(existingUsers, fetchedUsers) {
+  const mergedUsers = [...existingUsers];
+  
+  fetchedUsers.forEach(fetchedUser => {
+    const existingIndex = mergedUsers.findIndex(u => u.id === fetchedUser.id);
+    
+    if (existingIndex === -1) {
+      // Add new user if not exists
+      mergedUsers.push(fetchedUser);
+    } else {
+      // Update existing user, preserving local changes
+      mergedUsers[existingIndex] = {
+        ...fetchedUser,
+        ...(mergedUsers[existingIndex].isLocal && { 
+          name: mergedUsers[existingIndex].name,
+          email: mergedUsers[existingIndex].email,
+          role: mergedUsers[existingIndex].role,
+          avatar: mergedUsers[existingIndex].avatar
+        })
+      };
+    }
+  });
+  
+  return mergedUsers;
+}

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { useUserStore } from "../lib/api";
 import UserTable from "./usertable";
@@ -10,7 +10,7 @@ const UserManagementPage = () => {
   const {
     users,
     currentPage,
-    totalPages,
+    totalUsers,
     searchTerm,
     selectedUser,
     isLoading,
@@ -26,16 +26,30 @@ const UserManagementPage = () => {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = React.useState(false);
   const [isViewUserModalOpen, setIsViewUserModalOpen] = React.useState(false);
 
+  // Calculate total pages based on total users and page size
+  const totalPages = Math.ceil(totalUsers / 6);
+
   useEffect(() => {
     fetchUsers(currentPage);
-  }, [currentPage]);
+  }, [currentPage, fetchUsers]);
 
-  const filteredUsers = (users[currentPage] || []).filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    if (!users || !Array.isArray(users)) return [];
+  
+    return users.filter(
+      (user) => 
+        // Add null/undefined checks for each property
+        (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [users, searchTerm]);
+
+  // Paginate filtered users
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * 6;
+    return filteredUsers.slice(startIndex, startIndex + 6);
+  }, [filteredUsers, currentPage]);
 
   const handleViewUser = (user) => {
     setSelectedUser(user);
@@ -151,7 +165,7 @@ const UserManagementPage = () => {
         {!isLoading && !error && (
           <div className="overflow-x-auto">
             <UserTable
-              users={filteredUsers}
+              users={paginatedUsers}
               onDeleteUser={handleDeleteUser}
               onEditUser={handleEditUser}
               onViewUser={handleViewUser}
